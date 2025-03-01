@@ -1,39 +1,52 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import { useEffect, useState } from "react";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import * as Font from "expo-font";
+import { useColorScheme, StatusBar } from "react-native";
+import { ThemeProvider } from "@react-navigation/native";
+import { lightTheme, darkTheme } from "../theme/theme";
+import { ThemeContext } from "../utils/themeContext";
 
-import { useColorScheme } from '@/hooks/useColorScheme';
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
+// Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+  const systemColorScheme = useColorScheme();
+  const [theme, setTheme] = useState(systemColorScheme);
+  const isDark = theme === "dark";
+
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
+    async function loadResources() {
+      try {
+        await Font.loadAsync({
+          "SpaceMono-Regular": require("../assets/fonts/SpaceMono-Regular.ttf"),
+        });
+      } catch (e) {
+        console.warn("Error loading fonts", e);
+      } finally {
+        setTimeout(() => {
+          setIsReady(true);
+          SplashScreen.hideAsync();
+        }, 500); 
+      }
     }
-  }, [loaded]);
+    loadResources();
+  }, []);
 
-  if (!loaded) {
-    return null;
-  }
+  if (!isReady) return null;
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <ThemeContext.Provider value={{ theme, setTheme }}>
+      <ThemeProvider value={isDark ? darkTheme : lightTheme}>
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+        <Stack>
+          {/* The (tabs) folder is automatically treated as a nested navigator */}
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
+      </ThemeProvider>
+    </ThemeContext.Provider>
   );
 }
